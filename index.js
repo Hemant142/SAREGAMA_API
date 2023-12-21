@@ -15,7 +15,7 @@ app.set("view engine", "ejs");
 app.use(express.urlencoded({extended:false}))
 app.get("/",async(req,res)=>{
     res.setHeader("Content-type", "text/html")
-    res.send("<h1>Welcome to the Sare Gama Server</h1>")
+    res.send("<h1>Welcome to the Sare Gama server</h1>")
 })
 app.use("/songs",SongRoute)
 app.use("/favorite",FavoriteSongRoute)
