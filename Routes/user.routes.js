@@ -314,10 +314,13 @@ userRouter.get("/resetpassword/:id/:token", async (req, res) => {
     }
   
 });
+
+
 userRouter.post("/resetpassword/:id/:token", async (req, res) => {
   const { password } = req.body;
   const { token ,id} = req.params;
-  console.log(id)
+  // console.log(id)
+
   if (!password) {
     res.status(200).json({ error: "all the fields are requried" });
   } else {
