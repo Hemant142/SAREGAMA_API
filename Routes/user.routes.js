@@ -8,7 +8,7 @@ const { BlacklistModel } = require("../Model/Blacklist.model");
 require("dotenv").config();
 var nodemailer = require('nodemailer');
 const sendEmail = require("../utils/sendEmail");
-const SECRET_KEY = process.env.secretKey;
+const SECRET_KEY = process.env.SECRET_Key;
 // This is a user route which only contains user routes
 const userRouter = express.Router();
 // userRouter.set('view engine', 'ejs'); // Set EJS as the template engine
