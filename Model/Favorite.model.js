@@ -11,13 +11,14 @@ const FavoriteSongSchema=mongoose.Schema({
     language:String,
     liked: Number,
     disliked: Number,
-    lyrics: [String],
+    // lyrics: [String],
     userID:String,
-    username:String,
+    // username:String,
     songId:String
   
 },{versionKey:false})
 const FavoriteSongModel=mongoose.model("favoriteSong",FavoriteSongSchema);
 module.exports={
   FavoriteSongModel
+
 }

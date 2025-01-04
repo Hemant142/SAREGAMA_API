@@ -1,10 +1,14 @@
 const express = require("express");
 const { SongModel } = require("../Model/Song.Model");
 const { auth } = require("../Middleware/auth.middleware");
+const jwt = require('jsonwebtoken');
+const { BlacklistModel } = require("../Model/Blacklist.model");
+const SECRET_KEY = process.env.SECRET_KEY
 
 const SongRoute = express.Router();
 // SongRoute.use(auth)
 // Song Get Requeest for getting the song according the query
+
 SongRoute.get("/", async (req, res) => {
   // title: String,
   // avatar: String,
@@ -73,19 +77,64 @@ SongRoute.get("/", async (req, res) => {
 
     // const pageNumber = parseInt(page) || 1; // page come form query if not then by default 1
     const pageSize = parseInt(limit) || Infinity; // limit come form query if not then by default 10
-    const totalproduct = await SongModel.countDocuments(query); // it is use for count totle Song
-    const totalPages = Math.ceil(totalproduct / pageSize); // logic for find total page
+    const totalProduct = await SongModel.countDocuments(query); // it is use for count totle Song
+    const totalPages = Math.ceil(totalProduct / pageSize); // logic for find total page
 
-    const data = await SongModel.find(query)
+    const songs = await SongModel.find(query)
       .sort(sortOptions)
       // .skip((pageNumber - 1) * pageSize)
       .limit(pageSize);
-    res.json({
-      data, // current page Array of SONG list means how many limit you give
-      // page: pageNumber, // current page
-      totalPages, // total page
-      totalResults: totalproduct, //  total number of SONG persent in database
-    });
+
+
+//Check for bearer token
+const authHeader = req.headers.authorization;
+const token = authHeader && authHeader.split(" ")[1];
+const isBlackListed = await BlacklistModel.findOne({blacklist: token});
+if (isBlackListed) {
+  return res.status(403).json({ error: "Token is blacklisted! Please login again." });
+}
+
+if(token&&!isBlackListed) {
+  try{
+    
+    jwt.verify(token,SECRET_KEY);
+
+    //If token is valid, include audio file 
+    const dataWithAudio = songs.map((song)=>({
+      ...song._doc,
+    }));
+
+      return res.json({
+        data: dataWithAudio,
+        totalPages,
+        totalResults:totalProduct
+      })
+  }
+  catch (error) {
+    // Token is invalid
+    return res.status(403).json({ error: "Invalid or expired token!" });
+  }
+}
+// Ifno token, exclude audio fiels
+const dataWithoutAudio = songs.map((song)=>{
+  const {audio, ...rest} = song._doc;
+  return rest
+})
+return res.json({
+  data: dataWithoutAudio,
+  totalPages,
+  totalResults:totalProduct
+})
+
+
+// <=======================Old Code======================>
+    // res.json({
+    //   data, // current page Array of SONG list means how many limit you give
+    //   // page: pageNumber, // current page
+    //   totalPages, // total page
+    //   totalResults: totalProduct, //  total number of SONG persent in database
+    // });
+// <=======================Old Code======================>
   } catch (error) {
     res.status(400).json({ error: "error" });
   }
@@ -153,6 +202,7 @@ SongRoute.delete("/delete/:songId", auth, async (req, res) => {
     res.status(400).json({ error: "error" });
   }
 });
+
 
 module.exports = {
   SongRoute,

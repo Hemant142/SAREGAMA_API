@@ -8,6 +8,7 @@ const { BlacklistModel } = require("../Model/Blacklist.model");
 require("dotenv").config();
 var nodemailer = require('nodemailer');
 const sendEmail = require("../utils/sendEmail");
+const { auth } = require("../Middleware/auth.middleware");
 const SECRET_KEY = process.env.SECRET_Key;
 // This is a user route which only contains user routes
 const userRouter = express.Router();
@@ -26,7 +27,7 @@ userRouter.get("/", async (req, res) => {
     res.status(400).send({ error: error.message });
   }
 });
-
+ 
 //This is a user registration route where user can register him self
 userRouter.post("/register", async (req, res) => {
   const { name, email, password, gender, image, dob, age, role } = req.body;
@@ -73,20 +74,24 @@ userRouter.post("/login", async (req, res) => {
     if (existingUser) {
       bcrypt.compare(password, existingUser.password, (err, result) => {
         if (result) {
-          console.log(result);
-          const expirationTime =
-            Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7;
-          const token = jwt.sign(
+        
+          //Token expiration time (e.g, 7 days)
+          const expirationTime ='7d';
+            // Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7;
+         
+            //Gernate Bearer Token
+            const token = jwt.sign(
             { userID: existingUser._id, username: existingUser.name },
             SECRET_KEY,
             {
               expiresIn: expirationTime,
             }
           );
-          console.log(expirationTime, "Token");
+          // console.log(token,"Login token")
+          
           return res
             .status(200)
-            .json({ msg: "Login Successfull!", token, existingUser });
+            .json({ msg: "Login Successfull!", token, existingUser  });
         } else {
           res.status(200).json({ error: "Invalid Password!" });
         }
@@ -100,16 +105,49 @@ userRouter.post("/login", async (req, res) => {
   }
 });
 
+userRouter.get('/profile',auth,async(req,res)=>{
+
+  try{
+//Extract user ID from token
+const userID = req.body.userID; 
+
+//Fetch user details from database
+const user = await UserModel.findById(userID).select('-_id -password');
+
+if(!user){
+  return res.status(404).json({error:'User not found'});
+}
+
+//Return user details
+res.status(200).json({user});
+  }
+  catch(error){
+res.status(500).json({error:error.message})
+  }
+})
+
 //This is a logout route on successful logout user login genrated token will be going to get blacklisted
 userRouter.get("/logout", async (req, res) => {
-  const token = req.headers.authorization;
+  const token = req.headers.authorization?.split(" ")[1]; //Extract token from Bearer header
+  if (!token) {
+    return res.status(400).json({ error: "Token is required!" });
+  }
+
   try {
-    if (token) {
-      await BlacklistModel.updateMany({}, { $push: { blacklist: [token] } });
-      res.status(200).json({ msg: "User has been logged out" });
+    // if (token) {
+    //   await BlacklistModel.updateMany({}, { $push: { blacklist: [token] } });
+    //   res.status(200).json({ msg: "User has been logged out" });
+    // }
+    const blacklistEntry = await BlacklistModel.findOne({});
+   console.log(blacklistEntry,"Black List Entry")
+    if(!blacklistEntry){
+      await BlacklistModel.create({blacklist : [token]});
+    }else{
+      await BlacklistModel.updateOne({},{$push : {blacklist:token}})
     }
+    res.status(200).json({msg:'User has been loggged out'})
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -124,8 +162,6 @@ userRouter.patch("/update/:id", async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
-
-
 
 //This route is responsible for deleting the user
 // userRouter.delete("/delete/:id", async (req, res) => {
@@ -290,8 +326,6 @@ userRouter.post("/forgot", async (req, res) => {
   }
 });
 
-
-
 userRouter.get("/resetpassword/:id/:token", async (req, res) => {
   // const { password } = req.body;
   const { token ,id} = req.params;
@@ -313,8 +347,7 @@ userRouter.get("/resetpassword/:id/:token", async (req, res) => {
       res.status(200).json({ error: error.message, issue: true });
     }
   
-});
-
+});  
 
 userRouter.post("/resetpassword/:id/:token", async (req, res) => {
   const { password } = req.body;
@@ -352,21 +385,6 @@ userRouter.post("/resetpassword/:id/:token", async (req, res) => {
     }
   }
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 //exporting the userRouter
