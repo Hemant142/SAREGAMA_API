@@ -97,6 +97,7 @@ if (isBlackListed) {
 if(token&&!isBlackListed) {
   try{
     
+    
     jwt.verify(token,SECRET_KEY);
 
     //If token is valid, include audio file 
