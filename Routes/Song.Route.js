@@ -6,7 +6,7 @@ const { BlacklistModel } = require("../Model/Blacklist.model");
 const SECRET_KEY = process.env.SECRET_KEY
 
 const SongRoute = express.Router();
-SongRoute.use(auth)
+// SongRoute.use(auth)
 // Song Get Requeest for getting the song according the query
 
 SongRoute.get("/", async (req, res) => {
@@ -96,7 +96,7 @@ if (isBlackListed) {
 
 if(token&&!isBlackListed) {
   try{
-
+    
     
     jwt.verify(token,SECRET_KEY);
 
