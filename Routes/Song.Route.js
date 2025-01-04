@@ -93,6 +93,8 @@ const isBlackListed = await BlacklistModel.findOne({blacklist: token});
 if (isBlackListed) {
   return res.status(403).json({ error: "Token is blacklisted! Please login again." });
 }
+console.log(authHeader,"authHeader")
+console.log(isBlackListed,"isBlackListed")
 
 if(token&&!isBlackListed) {
   try{
