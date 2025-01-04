@@ -14,7 +14,7 @@ SongRoute.get("/", async (req, res) => {
   // avatar: String,
   // play: String,
   // rating: String,
-  
+
   // catogary: String,
   // artist: String,
   // liked: Number,
@@ -94,8 +94,7 @@ const isBlackListed = await BlacklistModel.findOne({blacklist: token});
 if (isBlackListed) {
   return res.status(403).json({ error: "Token is blacklisted! Please login again." });
 }
-console.log(authHeader,"authHeader")
-console.log(isBlackListed,"isBlackListed")
+
 
 if(token&&!isBlackListed) {
   try{
@@ -116,6 +115,7 @@ if(token&&!isBlackListed) {
   }
   catch (error) {
     // Token is invalid
+    console.log(error,"Error")
     return res.status(403).json({ error: "Invalid or expired token!" });
   }
 }
@@ -125,7 +125,7 @@ const dataWithoutAudio = songs.map((song)=>{
   return rest
 })
 return res.json({
-  data: dataWithoutAudio,
+  data: songs,
   totalPages,
   totalResults:totalProduct
 })
@@ -192,7 +192,7 @@ SongRoute.delete("/delete/:songId", auth, async (req, res) => {
     const { songId } = req.params;
     // console.log({songId});
     const Song = await SongModel.findOne({ _id: songId });
-    console.log({ Song });
+   
     if (Song) {
       if (req.body.userID != Song.userID)
         res.status(200).send({ message: "you are not AdminAuthorized" });

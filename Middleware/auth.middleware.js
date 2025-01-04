@@ -38,7 +38,7 @@ const auth = async(req, res, next) => {
     const existingToken= await BlacklistModel.findOne({blacklist: {$in : token}});
    
     if(existingToken){
-        return res.status(403).json({error:'Please login again!'})
+        return res.status(403).json({error:'Token is blacklisted! Please login again.'})
     }
     
 
