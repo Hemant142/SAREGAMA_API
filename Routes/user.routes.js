@@ -27,60 +27,21 @@ userRouter.use(express.static("public")); // Serve static files (e.g., React fro
 const JWT_SECRET =
   "hvdvay6ert72839289()aiyg8t87qt72393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe";
 
-// userRouter.post("/loginWithGoogle", async (req, res) => {
-//   const { tokenId } = req.body;
-//   console.log(tokenId, "tokenId");
-
-//   try {
-//     // Verify Google token
-//     const decodedToken = await admin.auth().verifyIdToken(tokenId);
-//     const { uid, email, name, picture } = decodedToken;
-
-//     console.log("Decoded Firebase User:", decodedToken); // Debugging
-
-//     let user = await UserModel.findOne({ email });
-
-//     if (!user) {
-//       // If user doesn't exist, create new one
-//       user = new UserModel({
-//         name,
-//         email,
-//         firebaseUID: uid,
-//         image: picture,
-//       });
-//       await user.save();
-//     }
-
-//     // Generate JWT Token
-//     const jwtToken = jwt.sign(
-//       { userID: user._id, email: user.email },
-//       SECRET_KEY,
-//       { expiresIn: "7d" }
-//     );
-
-//     res.status(200).json({
-//       message: "Login successful",
-//       token: jwtToken,
-//       user,
-//     });
-//   } catch (error) {
-//     console.error("Google Auth Error:", error.message);
-//     res.status(401).json({ error: "Invalid or expired Google token" });
-//   }
-// });
-
-// This is a user route which will provid the all the users data
-
 userRouter.post("/loginWithGoogle", async (req, res) => {
   const { tokenId } = req.body;
+  console.log(tokenId, "tokenId");
 
   try {
+    // Verify Google token
     const decodedToken = await admin.auth().verifyIdToken(tokenId);
     const { uid, email, name, picture } = decodedToken;
+
+    console.log("Decoded Firebase User:", decodedToken); // Debugging
 
     let user = await UserModel.findOne({ email });
 
     if (!user) {
+      // If user doesn't exist, create new one
       user = new UserModel({
         name,
         email,
@@ -90,6 +51,7 @@ userRouter.post("/loginWithGoogle", async (req, res) => {
       await user.save();
     }
 
+    // Generate JWT Token
     const jwtToken = jwt.sign(
       { userID: user._id, email: user.email },
       SECRET_KEY,
@@ -107,6 +69,7 @@ userRouter.post("/loginWithGoogle", async (req, res) => {
   }
 });
 
+// This is a user route which will provid the all the users data
 userRouter.get("/", async (req, res) => {
   try {
     const users = await UserModel.find();
