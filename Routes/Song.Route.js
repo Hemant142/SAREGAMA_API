@@ -27,6 +27,7 @@ SongRoute.get("/", async (req, res) => {
 
     const query = {}; // all query Object
 
+
     //  if catogary is in query and type is array
     if (Array.isArray(catogary)) {
       query.catogary = { $in: catogary };

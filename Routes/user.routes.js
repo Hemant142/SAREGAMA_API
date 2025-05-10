@@ -6,17 +6,68 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { BlacklistModel } = require("../Model/Blacklist.model");
 require("dotenv").config();
-var nodemailer = require('nodemailer');
+var nodemailer = require("nodemailer");
 const sendEmail = require("../utils/sendEmail");
 const { auth } = require("../Middleware/auth.middleware");
+const { OAuth2Client } = require("google-auth-library");
+const axios = require("axios"); // Import axios
+const admin = require("../Config/firebase-config"); // Firebase Admin
+
 const SECRET_KEY = process.env.SECRET_Key;
+
+// Create an OAuth2 client using Google's client ID
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 // This is a user route which only contains user routes
 const userRouter = express.Router();
+
 // userRouter.set('view engine', 'ejs'); // Set EJS as the template engine
 userRouter.use(express.static("public")); // Serve static files (e.g., React frontend) from the 'public' directory
 
 const JWT_SECRET =
   "hvdvay6ert72839289()aiyg8t87qt72393293883uhefiuh78ttq3ifi78272jbkj?[]]pou89ywe";
+
+userRouter.post("/loginWithGoogle", async (req, res) => {
+  const { tokenId } = req.body;
+  console.log(tokenId, "tokenId");
+
+  try {
+    // Verify Google token
+    const decodedToken = await admin.auth().verifyIdToken(tokenId);
+    const { uid, email, name, picture } = decodedToken;
+
+    console.log("Decoded Firebase User:", decodedToken); // Debugging
+
+    let user = await UserModel.findOne({ email });
+
+    if (!user) {
+      // If user doesn't exist, create new one
+      user = new UserModel({
+        name,
+        email,
+        firebaseUID: uid,
+        image: picture,
+      });
+      await user.save();
+    }
+
+    // Generate JWT Token
+    const jwtToken = jwt.sign(
+      { userID: user._id, email: user.email },
+      SECRET_KEY,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      message: "Login successful",
+      token: jwtToken,
+      user,
+    });
+  } catch (error) {
+    console.error("Google Auth Error:", error.message);
+    res.status(401).json({ error: "Invalid or expired Google token" });
+  }
+});
 
 // This is a user route which will provid the all the users data
 userRouter.get("/", async (req, res) => {
@@ -27,7 +78,7 @@ userRouter.get("/", async (req, res) => {
     res.status(400).send({ error: error.message });
   }
 });
- 
+
 //This is a user registration route where user can register him self
 userRouter.post("/register", async (req, res) => {
   const { name, email, password, gender, image, dob, age, role } = req.body;
@@ -74,13 +125,12 @@ userRouter.post("/login", async (req, res) => {
     if (existingUser) {
       bcrypt.compare(password, existingUser.password, (err, result) => {
         if (result) {
-        
           //Token expiration time (e.g, 7 days)
-          const expirationTime ='7d';
-            // Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7;
-         
-            //Gernate Bearer Token
-            const token = jwt.sign(
+          const expirationTime = "7d";
+          // Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7;
+
+          //Gernate Bearer Token
+          const token = jwt.sign(
             { userID: existingUser._id, username: existingUser.name },
             SECRET_KEY,
             {
@@ -88,10 +138,10 @@ userRouter.post("/login", async (req, res) => {
             }
           );
           // console.log(token,"Login token")
-          
+
           return res
             .status(200)
-            .json({ msg: "Login Successfull!", token, existingUser  });
+            .json({ msg: "Login Successfull!", token, existingUser });
         } else {
           res.status(200).json({ error: "Invalid Password!" });
         }
@@ -105,26 +155,24 @@ userRouter.post("/login", async (req, res) => {
   }
 });
 
-userRouter.get('/profile',auth,async(req,res)=>{
+userRouter.get("/profile", auth, async (req, res) => {
+  try {
+    //Extract user ID from token
+    const userID = req.body.userID;
 
-  try{
-//Extract user ID from token
-const userID = req.body.userID; 
+    //Fetch user details from database
+    const user = await UserModel.findById(userID).select("-_id -password");
 
-//Fetch user details from database
-const user = await UserModel.findById(userID).select('-_id -password');
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-if(!user){
-  return res.status(404).json({error:'User not found'});
-}
-
-//Return user details
-res.status(200).json({user});
+    //Return user details
+    res.status(200).json({ user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  catch(error){
-res.status(500).json({error:error.message})
-  }
-})
+});
 
 //This is a logout route on successful logout user login genrated token will be going to get blacklisted
 userRouter.get("/logout", async (req, res) => {
@@ -139,13 +187,13 @@ userRouter.get("/logout", async (req, res) => {
     //   res.status(200).json({ msg: "User has been logged out" });
     // }
     const blacklistEntry = await BlacklistModel.findOne({});
-   console.log(blacklistEntry,"Black List Entry")
-    if(!blacklistEntry){
-      await BlacklistModel.create({blacklist : [token]});
-    }else{
-      await BlacklistModel.updateOne({},{$push : {blacklist:token}})
+    console.log(blacklistEntry, "Black List Entry");
+    if (!blacklistEntry) {
+      await BlacklistModel.create({ blacklist: [token] });
+    } else {
+      await BlacklistModel.updateOne({}, { $push: { blacklist: token } });
     }
-    res.status(200).json({msg:'User has been loggged out'})
+    res.status(200).json({ msg: "User has been loggged out" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -188,7 +236,6 @@ userRouter.patch("/update/:id", async (req, res) => {
 //     });
 //     // console.log("token1", token)
 //     const link = `http://localhost:8080/users/reset-password/${oldUser._id}/${token}`;
-    
 
 //     // <=======================Sending to Email========================>
 //     var transporter = nodemailer.createTransport({
@@ -198,14 +245,14 @@ userRouter.patch("/update/:id", async (req, res) => {
 //         pass: 'rqlaujvwjbwkinve'
 //       }
 //     });
-    
+
 //     var mailOptions = {
 //       from: 'yhemant203@gmail.com',
 //       to: email,
 //       subject: 'Sending Email using Node.js',
 //       text: link
 //     };
-    
+
 //     transporter.sendMail(mailOptions, function(error, info){
 //       if (error) {
 //         console.log(error);
@@ -271,17 +318,6 @@ userRouter.patch("/update/:id", async (req, res) => {
 //   }
 // });
 
-
-
-
-
-
-
-
-
-
-
-
 // send mail for forgot Password
 userRouter.post("/forgot", async (req, res) => {
   const { email } = req.body;
@@ -299,7 +335,7 @@ userRouter.post("/forgot", async (req, res) => {
         );
 
         const text = `here is the link to forgot Password, try to update Password  ${process.env.WEBURL}/resetpassword/${user._id}/${token}`;
-// console.log(text)
+        // console.log(text)
         let obj = await sendEmail(
           user.email,
           "Forgot Password @ SA RE GA MA",
@@ -328,30 +364,28 @@ userRouter.post("/forgot", async (req, res) => {
 
 userRouter.get("/resetpassword/:id/:token", async (req, res) => {
   // const { password } = req.body;
-  const { token ,id} = req.params;
+  const { token, id } = req.params;
   // console.log(token,"Token")
   // console.log(id)
-    try {
-      let user = await UserModel.findOne({ _id:id});
-      // console.log(user,"user")
+  try {
+    let user = await UserModel.findOne({ _id: id });
+    // console.log(user,"user")
 
-      if (user) {
-        jwt.verify(token, process.env.JWT_RESET_KEY )
-          
-          res.redirect(`${process.env.URL}/reset_password/${id}/${token}`)
-        
-      } else {
-        res.status(200).json({ error: "Token is expired!", issue: true });
-      }
-    } catch (error) {
-      res.status(200).json({ error: error.message, issue: true });
+    if (user) {
+      jwt.verify(token, process.env.JWT_RESET_KEY);
+
+      res.redirect(`${process.env.URL}/reset_password/${id}/${token}`);
+    } else {
+      res.status(200).json({ error: "Token is expired!", issue: true });
     }
-  
-});  
+  } catch (error) {
+    res.status(200).json({ error: error.message, issue: true });
+  }
+});
 
 userRouter.post("/resetpassword/:id/:token", async (req, res) => {
   const { password } = req.body;
-  const { token ,id} = req.params;
+  const { token, id } = req.params;
   // console.log(id)
 
   if (!password) {
@@ -359,14 +393,12 @@ userRouter.post("/resetpassword/:id/:token", async (req, res) => {
   } else {
     try {
       let user = await UserModel.findOne({ _id: id });
-      console.log(user,"Password")
+      console.log(user, "Password");
       if (user) {
         jwt.verify(token, process.env.JWT_RESET_KEY, (err, decoded) => {
           if (err) console.log(err);
           if (decoded) {
-            
-            bcrypt
-            .hash(password, 5, async (err, hash) => {
+            bcrypt.hash(password, 5, async (err, hash) => {
               if (err) return err;
               user.password = hash;
               user.token = "";
@@ -385,7 +417,6 @@ userRouter.post("/resetpassword/:id/:token", async (req, res) => {
     }
   }
 });
-
 
 //exporting the userRouter
 module.exports = {

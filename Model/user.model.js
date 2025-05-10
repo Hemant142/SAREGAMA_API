@@ -5,10 +5,11 @@ const mongoose = require("mongoose");
 const userSchema = mongoose.Schema({
     name : {type : String, required : true},
     email : {type : String, required : true},
-    password : {type : String, required : true},
+    password : {type : String,},
     gender : {type : String},
-    // image : {type : String},
+    image : {type : String},
     dob : {type : String},
+    firebaseUID:{type:String},
     // age : {type : Number},
     // role : {type : String},
     verified:Boolean,
